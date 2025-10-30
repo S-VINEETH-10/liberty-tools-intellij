@@ -96,17 +96,38 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [ linux, mac, windows ]
+        runtime: [ mac1, mac2, mac3, mac4, mac5, mac6, mac7, mac8, mac9, mac10 ]
         include:
-          - runtime: linux
-            os: ubuntu-latest
-            reportName: linux-test-report
-          - runtime: mac
+          - runtime: mac1
             os: macOS-latest
-            reportName: mac-test-report
-          - runtime: windows
-            os: windows-latest
-            reportName: windows-test-report
+            reportName: mac-test-report1
+          - runtime: mac2
+            os: macOS-latest
+            reportName: mac-test-report2
+          - runtime: mac3
+            os: macOS-latest
+            reportName: mac-test-report3
+          - runtime: mac4
+            os: macOS-latest
+            reportName: mac-test-report4
+          - runtime: mac5
+            os: macOS-latest
+            reportName: mac-test-report5
+          - runtime: mac6
+            os: macOS-latest
+            reportName: mac-test-report6
+          - runtime: mac7
+            os: macOS-latest
+            reportName: mac-test-report7
+          - runtime: mac8
+            os: macOS-latest
+            reportName: mac-test-report8
+          - runtime: mac9
+            os: macOS-latest
+            reportName: mac-test-report9
+          - runtime: mac10
+            os: macOS-latest
+            reportName: mac-test-report10
     env:
       USE_LOCAL_PLUGIN: ${{ inputs.useLocalPlugin || false }}
       REF_LSP4IJ: ${{ needs.fetch_merge_commit_sha_from_lsp4ij_PR.outputs.pr_details }}
