@@ -194,85 +194,36 @@ gatherDebugData() {
 #}
 
 startIDE() {
-    # Configuration
-    local BASE_TIMEOUT=120        # Base timeout in seconds (2 minutes)
-    local MAX_TIMEOUT=600         # Maximum timeout in seconds (10 minutes)
-    local CHECK_INTERVAL=5        # Check every 5 seconds
-    local DOWNLOAD_GRACE_PERIOD=300  # Extra 5 minutes if downloads detected
+    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info > remoteServer.log 2>&1 &
 
-    # Start the IDE.
-    echo -e "\n$(${currentTime[@]}): INFO: Starting the IntelliJ IDE..."
-    # Have liberty tools debugger wait 480s for Maven or Gradle dev mode to start
-    export LIBERTY_TOOLS_INTELLIJ_DEBUGGER_TIMEOUT=480
-    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info 2>&1 | tee remoteServer.log &
-    local ide_pid=$!
-
-    echo -e "\n$(${currentTime[@]}): INFO: IDE process started with PID: $ide_pid"
-
-    # Wait for the IDE to come up with dynamic timeout
+    # Wait for the IDE to come up.
     echo -e "\n$(${currentTime[@]}): INFO: Waiting for the IntelliJ IDE to start..."
+    callLivenessEndpoint=(curl -s http://localhost:8082)
+    count=1
+    maxRetries=60    # Increased to handle longer startup times (e.g., dependency downloads)
+    sleepInterval=5  # seconds
 
-    local elapsed=0
-    local timeout=$BASE_TIMEOUT
-    local download_detected=false
-    local last_download_check=0
-    local callLivenessEndpoint=(curl -s http://localhost:8082)
-
-    while [ $elapsed -lt $timeout ]; do
-        # Check if IDE is ready (search for any amount of html from the IDE)
-        if ${callLivenessEndpoint[@]} | grep -qF 'div'; then
-            echo -e "\n$(${currentTime[@]}): INFO: IntelliJ IDE started successfully after ${elapsed} seconds"
-
-            # Get IDE PID for later use
-            if [[ $OS == "MINGW64_NT"* ]]; then
-                # On Windows ps -ef only shows the processes for the current user (i.e. 3-4 processes)
-                IDE_PID=$(ps -ef | grep -i java | awk '{print $2}')
-            else
-                IDE_PID=$(ps -ef | grep -i idea.main | grep -v grep | awk '{print $2}')
-            fi
-            echo -e "\n$(${currentTime[@]}): INFO: the Intellij IDE pid: $IDE_PID"
-            return 0
-        fi
-
-        # Check for downloads every 30 seconds to extend timeout if needed
-        if [ $((elapsed - last_download_check)) -ge 30 ]; then
-            if [ -f "remoteServer.log" ]; then
-                # Check for download/build indicators in recent log entries
-                if tail -n 50 remoteServer.log | grep -qiE "(downloading|download|fetching|resolving dependencies|building|compiling)"; then
-                    if [ "$download_detected" = false ]; then
-                        download_detected=true
-                        timeout=$((BASE_TIMEOUT + DOWNLOAD_GRACE_PERIOD))
-                        if [ $timeout -gt $MAX_TIMEOUT ]; then
-                            timeout=$MAX_TIMEOUT
-                        fi
-                        echo -e "\n$(${currentTime[@]}): INFO: Downloads/builds detected in logs. Extending timeout to ${timeout} seconds"
-                    fi
-                    last_download_check=$elapsed
-                fi
-            fi
-        fi
-
-        # Check if IDE process is still running
-        if ! ps -p $ide_pid > /dev/null 2>&1; then
-            echo -e "\n$(${currentTime[@]}): ERROR: IDE process (PID: $ide_pid) terminated unexpectedly"
-            gatherDebugData $(pwd)
+    while ! ${callLivenessEndpoint[@]} | grep -qF 'div'; do
+        if [ $count -eq $maxRetries ]; then
+            echo -e "\n$(${currentTime[@]}): ERROR: Timed out waiting for the IntelliJ IDE to start after $((maxRetries * sleepInterval)) seconds. Output:"
+            gatherDebugData "$(pwd)"
             cleanupCustomWLPDir
             exit 12
         fi
 
-        # Progress indicator with percentage
-        local progress=$((elapsed * 100 / timeout))
-        echo -e "\n$(${currentTime[@]}): INFO: Continue waiting for the Intellij IDE to start... (${elapsed}/${timeout}s - ${progress}%)"
+        count=$((count + 1))
+        echo -e "\n$(${currentTime[@]}): INFO: Continue waiting for the IntelliJ IDE to start... (Attempt: $count/$maxRetries)"
 
-        sleep $CHECK_INTERVAL
-        elapsed=$((elapsed + CHECK_INTERVAL))
+        # If downloads are ongoing, extend timeout dynamically
+        if grep -q "Downloading" remoteServer.log; then
+            echo -e "$(${currentTime[@]}): INFO: IntelliJ is downloading dependencies... extending wait time."
+            maxRetries=$((maxRetries + 12))  # Extend by 1 more minute (12×5s)
+        fi
+
+        sleep $sleepInterval
     done
 
-    # Timeout reached
-    echo -e "\n$(${currentTime[@]}): ERROR: Timed out waiting for the Intellij IDE to start after ${elapsed} seconds. Output:"
-    gatherDebugData $(pwd)
-    cleanupCustomWLPDir
-    exit 12
+    echo -e "\n$(${currentTime[@]}): INFO: IntelliJ IDE started successfully!"
 }
 
 # Runs UI tests and collects debug data.
