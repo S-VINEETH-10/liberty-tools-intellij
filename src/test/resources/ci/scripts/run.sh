@@ -160,44 +160,11 @@ gatherDebugData() {
     gatherResourceUsageData
 }
 
-# Start the IDE and wait for it to initialize. If the IDE takes too long this routine
-# will exit the script with error code 12.
-#startIDE() {
-#    # Start the IDE.
-#    echo -e "\n$(${currentTime[@]}): INFO: Starting the IntelliJ IDE..."
-#    # Have liberty tools debugger wait 480s for Maven or Gradle dev mode to start
-#    export LIBERTY_TOOLS_INTELLIJ_DEBUGGER_TIMEOUT=480
-#    #./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log  2>&1 &
-#    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info 2>&1 | tee remoteServer.log &
-#
-#    # Wait for the IDE to come up.
-#    echo -e "\n$(${currentTime[@]}): INFO: Waiting for the Intellij IDE to start..."
-#    callLivenessEndpoint=(curl -s http://localhost:8082)
-#    count=1
-#    while ! ${callLivenessEndpoint[@]} | grep -qF 'div'; do # search for any amount of html from the IDE
-#        if [ $count -eq 24 ]; then
-#            echo -e "\n$(${currentTime[@]}): ERROR: Timed out waiting for the Intellij IDE to start. Output:"
-#            gatherDebugData $(pwd)
-#            cleanupCustomWLPDir
-#            exit 12
-#        fi
-#        count=`expr $count + 1`
-#        echo -e "\n$(${currentTime[@]}): INFO: Continue waiting for the Intellij IDE to start..." && sleep 5
-#    done
-#    if [[ $OS == "MINGW64_NT"* ]]; then
-#        # On Windows ps -ef only shows the processes for the current user (i.e. 3-4 processes)
-#        IDE_PID=$(ps -ef | grep -i java | awk '{print $2}')
-#    else
-#        IDE_PID=$(ps -ef | grep -i idea.main | grep -v grep | awk '{print $2}')
-#    fi
-#    echo -e "\n$(${currentTime[@]}): INFO: the Intellij IDE pid:" + $IDE_PID
-#}
-
 startIDE() {
-    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info > remoteServer.log 2>&1 &
+    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log 2>&1 &
 
     # Wait for the IDE to come up.
-    echo -e "\n$(${currentTime[@]}): INFO: Waiting for the IntelliJ IDE to start..."
+    echo -e "\n$(${currentTime[@]}): INFO: Waiting for the Intellij IDE to start..."
     callLivenessEndpoint=(curl -s http://localhost:8082)
     count=1
     maxRetries=60    # Increased to handle longer startup times (e.g., dependency downloads)
@@ -223,7 +190,7 @@ startIDE() {
         sleep $sleepInterval
     done
 
-    echo -e "\n$(${currentTime[@]}): INFO: IntelliJ IDE started successfully!"
+    echo -e "\n$(${currentTime[@]}): INFO: the Intellij IDE pid:" + $IDE_PID
 }
 
 # Runs UI tests and collects debug data.
