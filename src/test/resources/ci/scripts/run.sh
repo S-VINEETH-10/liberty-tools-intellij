@@ -160,8 +160,14 @@ gatherDebugData() {
     gatherResourceUsageData
 }
 
+# Start the IDE and wait for it to initialize. If the IDE takes too long this routine
+# will exit the script with error code 12.
 startIDE() {
-    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log 2>&1 &
+    # Start the IDE.
+    echo -e "\n$(${currentTime[@]}): INFO: Starting the IntelliJ IDE..."
+    # Have liberty tools debugger wait 480s for Maven or Gradle dev mode to start
+    export LIBERTY_TOOLS_INTELLIJ_DEBUGGER_TIMEOUT=480
+    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log  2>&1 &
 
     # Wait for the IDE to come up.
     echo -e "\n$(${currentTime[@]}): INFO: Waiting for the Intellij IDE to start..."
@@ -189,7 +195,12 @@ startIDE() {
 
         sleep $sleepInterval
     done
-
+    if [[ $OS == "MINGW64_NT"* ]]; then
+        # On Windows ps -ef only shows the processes for the current user (i.e. 3-4 processes)
+        IDE_PID=$(ps -ef | grep -i java | awk '{print $2}')
+    else
+        IDE_PID=$(ps -ef | grep -i idea.main | grep -v grep | awk '{print $2}')
+    fi
     echo -e "\n$(${currentTime[@]}): INFO: the Intellij IDE pid:" + $IDE_PID
 }
 
