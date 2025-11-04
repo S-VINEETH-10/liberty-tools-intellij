@@ -167,7 +167,8 @@ startIDE() {
     echo -e "\n$(${currentTime[@]}): INFO: Starting the IntelliJ IDE..."
     # Have liberty tools debugger wait 480s for Maven or Gradle dev mode to start
     export LIBERTY_TOOLS_INTELLIJ_DEBUGGER_TIMEOUT=480
-    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log  2>&1 &
+#    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info  > remoteServer.log  2>&1 &
+    ./gradlew runIdeForUiTests -PuseLocal=$USE_LOCAL_PLUGIN --info 2>&1 | tee remoteServer.log &
 
     # Wait for the IDE to come up.
     echo -e "\n$(${currentTime[@]}): INFO: Waiting for the Intellij IDE to start..."
@@ -188,11 +189,13 @@ startIDE() {
         echo -e "\n$(${currentTime[@]}): INFO: Continue waiting for the IntelliJ IDE to start... (Attempt: $count/$maxRetries)"
 
         # If downloads are ongoing, extend timeout dynamically
-        if grep -q "Downloading" remoteServer.log; then
-            echo -e "$(${currentTime[@]}): INFO: IntelliJ is downloading dependencies... extending wait time."
-            maxRetries=$((maxRetries + 12))  # Extend by 1 more minute (12×5s)
+        if tail -n 50 remoteServer.log | grep -qiE "(downloading|download.*from)"; then
+            # Cap extensions to prevent infinite wait
+            if [ $maxRetries -lt 60 ]; then
+                echo -e "$(${currentTime[@]}): INFO: IntelliJ is downloading dependencies... extending wait time."
+                maxRetries=$((maxRetries + 12))  # Extend by 1 more minute (12×5s)
+            fi
         fi
-
         sleep $sleepInterval
     done
     if [[ $OS == "MINGW64_NT"* ]]; then
