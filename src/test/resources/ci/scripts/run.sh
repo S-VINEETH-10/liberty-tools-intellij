@@ -193,7 +193,7 @@ startIDE() {
             # Cap extensions to prevent infinite wait
             if [ $maxRetries -lt 60 ]; then
                 echo -e "$(${currentTime[@]}): INFO: IntelliJ is downloading dependencies... extending wait time."
-                maxRetries=$((maxRetries + 12))  # Extend by 1 more minute (12×5s)
+                maxRetries=$((maxRetries + 4))
             fi
         fi
         sleep $sleepInterval
