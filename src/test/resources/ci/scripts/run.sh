@@ -173,7 +173,7 @@ startIDE() {
     echo -e "\n$(${currentTime[@]}): INFO: Waiting for the Intellij IDE to start..."
     callLivenessEndpoint=(curl -s http://localhost:8082)
     count=1
-    maxRetries=60    # Increased to handle longer startup times (e.g., dependency downloads)
+    maxRetries=24
     sleepInterval=5  # seconds
 
     while ! ${callLivenessEndpoint[@]} | grep -qF 'div'; do
